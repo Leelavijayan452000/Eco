@@ -1,0 +1,699 @@
+import styled, { css, keyframes } from "styled-components";
+import { useEffect, useRef, useState } from "react";
+import {
+  Recycle,
+  Trash2,
+  Leaf,
+  BarChart2,
+  RefreshCw,
+  AlertTriangle,
+} from "lucide-react";
+
+// --- Keyframe Animations ---
+const glow = (color) => keyframes`
+  0%, 100% { box-shadow: 0 0 5px ${color}, 0 0 10px ${color}; }
+  50% { box-shadow: 0 0 20px ${color}, 0 0 30px ${color}; }
+`;
+
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+// --- General Styled Components ---
+const AppWrapper = styled.div`
+  background-color: #111827;
+  height: 100vh; // Set fixed height
+  overflow: hidden; // Prevent scrolling
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: "Inter", "Arial", sans-serif;
+  padding: 2rem;
+  color: #f9fafb;
+`;
+
+const Header = styled.header`
+  width: 100%;
+  max-width: 90rem; // Increased max-width for wider layout
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  animation: ${fadeIn} 0.5s ease-out;
+  flex-shrink: 0; // Prevent header from shrinking
+`;
+
+const WelcomeMessage = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  h1 {
+    font-size: 2.25rem;
+    font-weight: bold;
+    margin: 0;
+  }
+  p {
+    font-size: 1.125rem;
+    margin: 0;
+    color: #9ca3af;
+  }
+`;
+
+const Logo = styled.div`
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 100px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  background-color: transparent;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const MainContent = styled.div`
+  background: #1f2937;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  display: flex;
+  flex-direction: column;
+`;
+
+const SectionTitle = styled.h2`
+  font-size: 1.25rem;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #9ca3af;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`;
+
+// --- Landing Page Specific Styles ---
+const LandingContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 10;
+  background-color: #111827;
+`;
+
+const BackgroundVideo = styled.video`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: translate(-50%, -50%);
+  z-index: -1;
+  filter: brightness(0.5);
+`;
+
+const LandingContent = styled.div`
+  animation: ${fadeIn} 1s ease-out;
+  h1 {
+    color: #10b981;
+    font-size: 4rem;
+    font-weight: bold;
+    margin: 0;
+    text-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+  }
+  p {
+    font-size: 1.5rem;
+    margin: 1rem 0 2rem 0;
+    color: #e5e7eb;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+  }
+`;
+
+const StartButton = styled.button`
+  background-color: #22c55e;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: bold;
+  padding: 1rem 3rem;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out,
+    background-color 0.2s;
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px #22c55e;
+  }
+  &:disabled {
+    background-color: #4b5563;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+`;
+
+// --- New Combined Layout Styles ---
+const CombinedBody = styled.div`
+  display: flex;
+  flex-direction: row;
+  gap: 2rem;
+  width: 100%;
+  max-width: 90rem;
+  flex-grow: 1; // Allows content to fill available vertical space
+  animation: ${fadeIn} 0.5s ease-out forwards;
+  align-items: stretch;
+`;
+
+const SorterColumn = styled(MainContent)`
+  flex: 3; // Give more space to the sorter
+  gap: 1.5rem;
+  padding: 1.5rem;
+`;
+
+const DashboardColumn = styled(MainContent)`
+  flex: 2; // Give less space to the dashboard
+  justify-content: space-around;
+  padding: 1.5rem;
+`;
+
+// --- Webcam & Sorter Styles ---
+const VideoContainer = styled.div`
+  position: relative;
+  width: 100%;
+  max-width: 600px; // Reduced camera size
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  background-color: black;
+  border-radius: 1rem;
+  overflow: hidden;
+`;
+
+const StyledVideo = styled.video`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: relative;
+  z-index: 2;
+  transform: scaleX(-1); // Mirror view
+`;
+
+const FallbackVideo = styled.video`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 1rem;
+  opacity: ${(props) => (props.visible ? 1 : 0)};
+  transition: opacity 0.5s ease;
+  z-index: 1;
+`;
+
+const VideoOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  background: rgba(17, 24, 39, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f9fafb;
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-align: center;
+`;
+
+const PercentagesContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+  min-height: 4rem;
+`;
+
+const PercentageBox = styled.div`
+  background-color: #374151;
+  border-radius: 0.75rem;
+  padding: 0.5rem 1.5rem;
+  text-align: center;
+  animation: ${fadeIn} 0.3s ease-out;
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #d1d5db;
+  }
+  span {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: ${(props) => props.color};
+  }
+`;
+
+const BinsContainer = styled.div`
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  gap: 1.5rem;
+  flex-grow: 1;
+`;
+
+const Bin = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  text-align: center;
+  color: white;
+  font-weight: bold;
+  background-color: ${(props) => props.bgColor};
+  border: 4px solid transparent;
+  transition: transform 0.2s ease-in-out, border-color 0.2s ease-in-out,
+    box-shadow 0.3s ease;
+
+  ${(props) =>
+    props.isActive &&
+    css`
+      transform: scale(1.05);
+      border-color: ${props.bgColor};
+      animation: ${glow(props.bgColor)} 1.5s ease-in-out infinite;
+    `}
+  h3 {
+    margin: 0.5rem 0 0.25rem 0;
+  }
+  p {
+    font-size: 0.75rem;
+    margin: 0;
+    font-weight: normal;
+  }
+`;
+
+// --- Dashboard Specific Styles ---
+const ResetButton = styled.button`
+  background-color: #ef4444;
+  color: #f9fafb;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s, transform 0.2s;
+  &:hover {
+    background-color: #f87171;
+    transform: translateY(-2px);
+  }
+`;
+
+const BottleCard = styled.div`
+  background: #111827; // Changed background for contrast
+  border-radius: 1.5rem;
+  padding: 1rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: row; // Bottles and text are side-by-side
+  gap: 1.5rem;
+  align-items: center;
+  width: 90%;
+`;
+
+const BottleContainer = styled.div`
+  width: 70px; // Smaller bottle
+  height: 180px; // Smaller bottle
+  border: 4px solid #374151;
+  border-radius: 35px 35px 15px 15px;
+  background-color: #1f2937;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+`;
+
+const BottleFill = styled.div`
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: ${(props) => props.level}%;
+  background: linear-gradient(
+    180deg,
+    ${(props) => props.color} 0%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+  border-radius: 35px 35px 0 0;
+  transition: height 0.5s ease-in-out;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+`;
+
+const FillPercentage = styled.span`
+  color: #f9fafb;
+  font-weight: bold;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+`;
+
+const BinDetails = styled.div`
+  text-align: left;
+  flex-grow: 1;
+  h3 {
+    font-size: 1.5rem;
+    margin: 0 0 0.5rem 0;
+  }
+`;
+
+const BinFullMessage = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #facc15;
+  font-weight: bold;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  animation: ${fadeIn} 0.5s ease-out;
+`;
+
+// --- Bin Data (Shared) ---
+const bins = [
+  {
+    name: "Recycle",
+    bgColor: "#0ea5e9",
+    desc: "Bottles, cans, paper...",
+    icon: <Recycle size={36} strokeWidth={2.5} />,
+  },
+  {
+    name: "Non-Recycle",
+    bgColor: "#f97316",
+    desc: "Broken toys, dirty items",
+    icon: <Trash2 size={36} strokeWidth={2.5} />,
+  },
+  {
+    name: "Organic",
+    bgColor: "#84cc16",
+    desc: "Food scraps, fruit peels",
+    icon: <Leaf size={36} strokeWidth={2.5} />,
+  },
+];
+
+// --- Sub-Components ---
+const LandingPage = ({ onStart }) => {
+  const [buttonState, setButtonState] = useState("idle"); // 'idle', 'loading', 'error'
+
+  const handleStartClick = async () => {
+    setButtonState("loading");
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      // Use a custom, non-blocking message instead of alert()
+      console.error("Your browser does not support camera access.");
+      setButtonState("error");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach((track) => track.stop());
+      onStart();
+    } catch (err) {
+      console.error("Failed to get camera permission:", err);
+      setButtonState("error");
+    }
+  };
+
+  const getButtonContent = () => {
+    switch (buttonState) {
+      case "loading":
+        return "Accessing Camera...";
+      case "error":
+        return "Camera Access Denied";
+      default:
+        return "Start Sorting";
+    }
+  };
+
+  return (
+    <LandingContainer>
+      <BackgroundVideo autoPlay loop muted playsInline>
+        <source src="/videos/sortyx.mp4" type="video/mp4" />
+      </BackgroundVideo>
+      <LandingContent>
+        <h1>Eco Saver</h1>
+        <p>Your smart assistant for a cleaner planet.</p>
+        <StartButton
+          onClick={handleStartClick}
+          disabled={buttonState !== "idle"}
+        >
+          {getButtonContent()}
+        </StartButton>
+      </LandingContent>
+    </LandingContainer>
+  );
+};
+
+// --- Main App Component ---
+export default function App() {
+  const [isSorting, setIsSorting] = useState(false);
+  const [binLevels, setBinLevels] = useState({
+    Recycle: 10,
+    "Non-Recycle": 10,
+    Organic: 10,
+  });
+
+  // --- Webcam Logic ---
+  const videoRef = useRef(null);
+  const [activePrediction, setActivePrediction] = useState({
+    label: null,
+    confidence: null,
+  });
+  const [webcamStatus, setWebcamStatus] = useState("loading");
+
+  const fetchPredictionFromFrame = async (videoElement) => {
+    if (!videoElement || videoElement.videoWidth === 0) return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = videoElement.videoWidth;
+    canvas.height = videoElement.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+    return new Promise((resolve) => {
+      canvas.toBlob(async (blob) => {
+        if (!blob) return resolve(null);
+
+        const formData = new FormData();
+        formData.append("file", blob, "frame.jpg");
+
+        try {
+          const res = await fetch("http://127.0.0.1:5000/predict", {
+            method: "POST",
+            body: formData,
+          });
+          if (!res.ok) return resolve(null);
+          const data = await res.json();
+          resolve(data);
+        } catch (err) {
+          console.error("API Error:", err);
+          resolve(null);
+        }
+      }, "image/jpeg");
+    });
+  };
+
+  const handlePrediction = (binName) => {
+    setBinLevels((prev) => {
+      // Only increase if the bin is not already full
+      if (prev[binName] >= 100) return prev;
+      const newLevel = Math.min(100, prev[binName] + 1);
+      return { ...prev, [binName]: newLevel };
+    });
+  };
+
+  useEffect(() => {
+    if (!isSorting) return;
+
+    let stream;
+    const setupWebcam = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadeddata = () => setWebcamStatus("active");
+          await videoRef.current.play();
+        }
+      } catch (err) {
+        console.error("Webcam Error:", err);
+        setWebcamStatus("error");
+      }
+    };
+
+    const runPrediction = async () => {
+      if (activePrediction.label) return;
+      try {
+        const data = await fetchPredictionFromFrame(videoRef.current);
+        if (!data) return;
+
+        const labelMap = {
+          Recyclable: "Recycle",
+          "Non-Recyclable": "Non-Recycle",
+          Organic: "Organic",
+        };
+        const mappedLabel = labelMap[data?.prediction];
+
+        if (mappedLabel && data.confidence > 0.7) {
+          handlePrediction(mappedLabel);
+          setActivePrediction({
+            label: mappedLabel,
+            confidence: data.confidence,
+          });
+          setTimeout(
+            () => setActivePrediction({ label: null, confidence: null }),
+            2500
+          );
+        }
+      } catch (err) {
+        console.error("API Error:", err);
+      }
+    };
+
+    setupWebcam();
+    const interval = setInterval(runPrediction, 3000);
+
+    return () => {
+      clearInterval(interval);
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+    };
+  }, [isSorting, activePrediction.label]);
+
+  // --- Reset Logic ---
+  const handleReset = () => {
+    setBinLevels({ Recycle: 0, "Non-Recycle": 0, Organic: 0 });
+  };
+
+  const activeBin = bins.find((b) => b.name === activePrediction.label);
+
+  const getOverlayMessage = () => {
+    switch (webcamStatus) {
+      case "loading":
+        return "Starting camera...";
+      case "error":
+        return "Camera access denied or unavailable.";
+      default:
+        return null;
+    }
+  };
+
+  if (!isSorting) {
+    return <LandingPage onStart={() => setIsSorting(true)} />;
+  }
+
+  return (
+    <AppWrapper>
+      <Header>
+        <WelcomeMessage>
+          <Logo>
+            <img src="/sortyx.png" alt="Panda Logo" />
+          </Logo>
+          <div>
+            <h1>Sortyx | Eco-Saver! 🌱</h1>
+            <p>Sort it right, keep it bright!</p>
+          </div>
+        </WelcomeMessage>
+        <ResetButton onClick={handleReset}>
+          <RefreshCw size={20} /> Reset Levels
+        </ResetButton>
+      </Header>
+
+      <CombinedBody>
+        <SorterColumn>
+          <VideoContainer>
+            <FallbackVideo
+              autoPlay
+              loop
+              muted
+              playsInline
+              visible={webcamStatus !== "active"}
+            >
+              <source src="/videos/sortyx.mp4" type="video/mp4" />
+            </FallbackVideo>
+            <StyledVideo ref={videoRef} autoPlay playsInline muted />
+            {webcamStatus !== "active" && (
+              <VideoOverlay>{getOverlayMessage()}</VideoOverlay>
+            )}
+          </VideoContainer>
+          <PercentagesContainer>
+            {activePrediction.label && activePrediction.confidence && (
+              <PercentageBox color={activeBin?.bgColor}>
+                <p>{activePrediction.label}</p>
+                <span>{`${Math.round(
+                  parseFloat(activePrediction.confidence) * 100
+                )}%`}</span>
+              </PercentageBox>
+            )}
+          </PercentagesContainer>
+          <BinsContainer>
+            {bins.map((bin) => (
+              <Bin
+                key={bin.name}
+                bgColor={bin.bgColor}
+                isActive={activePrediction.label === bin.name}
+              >
+                {bin.icon}
+                <h3>{bin.name}</h3>
+                <p>{bin.desc}</p>
+              </Bin>
+            ))}
+          </BinsContainer>
+        </SorterColumn>
+
+        <DashboardColumn>
+          <SectionTitle style={{ justifyContent: "center" }}>
+            <BarChart2 />
+            Bin Levels
+          </SectionTitle>
+          {bins.map((bin) => (
+            <BottleCard key={bin.name}>
+              <BottleContainer>
+                <BottleFill level={binLevels[bin.name]} color={bin.bgColor}>
+                  {binLevels[bin.name] > 10 && (
+                    <FillPercentage>{binLevels[bin.name]}%</FillPercentage>
+                  )}
+                </BottleFill>
+              </BottleContainer>
+              <BinDetails>
+                <h3>{bin.name}</h3>
+                <p>{bin.desc}</p>
+                {binLevels[bin.name] >= 100 && (
+                  <BinFullMessage>
+                    <AlertTriangle size={16} />
+                    <span>Bin Full! Please empty.</span>
+                  </BinFullMessage>
+                )}
+              </BinDetails>
+            </BottleCard>
+          ))}
+        </DashboardColumn>
+      </CombinedBody>
+    </AppWrapper>
+  );
+}
