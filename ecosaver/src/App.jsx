@@ -118,8 +118,8 @@ const SorterColumn = styled(MainContent)`
 
 const DashboardColumn = styled(MainContent)`
   flex: 2;
-  justify-content: space-around;
-  padding: 1.5rem;
+  justify-content: start;
+  padding: 2rem;
 `;
 
 const NotifyButton = styled.button`
@@ -326,6 +326,7 @@ const ResetButton = styled.button`
 
 const BottleCard = styled.div`
   background: #111827;
+  margin-bottom: 2rem;
   border-radius: 1.5rem;
   padding: 1rem;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
@@ -395,7 +396,7 @@ const BinFullMessage = styled.div`
   animation: ${fadeIn} 0.5s ease-out;
 `;
 
-// --- Bin Data ---
+// --- Bin Data (Organic removed) ---
 const bins = [
   {
     name: "Recycle",
@@ -409,12 +410,6 @@ const bins = [
     desc: "Broken toys, dirty items",
     icon: <Trash2 size={36} strokeWidth={2.5} />,
   },
-  {
-    name: "Organic",
-    bgColor: "#84cc16",
-    desc: "Food scraps, fruit peels",
-    icon: <Leaf size={36} strokeWidth={2.5} />,
-  },
 ];
 
 // --- Main App Component ---
@@ -422,7 +417,6 @@ export default function App() {
   const [binLevels, setBinLevels] = useState({
     Recycle: 10,
     "Non-Recycle": 10,
-    Organic: 10,
   });
 
   const videoRef = useRef(null);
@@ -504,10 +498,10 @@ export default function App() {
       const data = await fetchPredictionFromFrame(videoRef.current);
       if (!data || !data.prediction) return;
 
+      // Label map without Organic
       const labelMap = {
         Recyclable: "Recycle",
         "Non-Recyclable": "Non-Recycle",
-        Organic: "Organic",
       };
       const mappedLabel = labelMap[data.prediction];
 
@@ -536,7 +530,7 @@ export default function App() {
   }, []); // Empty dependency array ensures this runs only once
 
   const handleReset = () => {
-    setBinLevels({ Recycle: 0, "Non-Recycle": 0, Organic: 0 });
+    setBinLevels({ Recycle: 0, "Non-Recycle": 0 });
   };
 
   const getOverlayMessage = () => {
